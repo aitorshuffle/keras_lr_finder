@@ -62,6 +62,35 @@ class LRFinder:
         # Restore the original learning rate
         K.set_value(self.model.optimizer.lr, original_lr)
 
+    def find_iterator(self, trainiter, start_lr, end_lr, epochs=1):
+
+        # num_batches = epochs * trainiter.nsamples / batch_size
+        num_batches = trainiter.nbatches
+        self.lr_mult = (end_lr / start_lr) ** (1 / num_batches)
+
+        # Save weights into a file
+        self.model.save_weights('tmp.h5')
+
+        # Remember the original learning rate
+        original_lr = K.get_value(self.model.optimizer.lr)
+
+        # Set the initial learning rate
+        K.set_value(self.model.optimizer.lr, start_lr)
+
+        callback = LambdaCallback(on_batch_end=lambda batch, logs: self.on_batch_end(batch, logs))
+
+        self.model.fit_generator(trainiter,
+                                 steps_per_epoch=trainiter.nbatches,
+                                 epochs=epochs,
+                                 callbacks=[callback])
+
+        # Restore the weights to the state before model fitting
+        self.model.load_weights('tmp.h5')
+
+        # Restore the original learning rate
+        K.set_value(self.model.optimizer.lr, original_lr)
+
+
     def plot_loss(self, n_skip_beginning=10, n_skip_end=5):
         """
         Plots the loss.
